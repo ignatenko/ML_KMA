@@ -455,4 +455,6 @@ df1 <- df1 %>%
 5. Використати всі операції dplyr() які розглядались.
 
 ## Джерело датасетів.
-https://knoema.com/
+https://www.springboard.com/blog/free-public-data-sets-data-science-project/
+https://www.quora.com/Where-can-I-find-large-datasets-open-to-the-public
+http://data.gov.ua/datasets
