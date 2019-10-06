@@ -1,0 +1,535 @@
+---
+title: "Lecture4. Візуалізація даних"
+author: "Олексій Ігнатенко"
+date: "September 28, 2019"
+output: ioslides_presentation
+---
+```{r setup, include=FALSE,eval=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Принципи візуалізації даних і попереднього аналізу
+
+Набір пакетів tidyverse
+
+```{r}
+library(tidyverse)
+```
+
+## Набір даних про машини
+
+```{r}
+str(mpg)
+head(mpg)
+```
+
+## Попередня візуалізація
+
+```{r}
+ggplot(data = mpg) + geom_point(mapping = aes(x = displ, y = hwy))
+```
+
+## Було б цікаво візуалізувати типи машин і інші параметри
+
+```{r}
+ggplot(data = mpg) + geom_point(mapping = aes(x = displ, y = hwy, color = class)) 
+```
+
+```{r}
+ggplot(data = mpg) + geom_point(mapping = aes(x = displ, y = hwy, color = class)) + 
+  theme_light()
+```
+
+## Ще можливості 
+
+```{r}
+ggplot(data = mpg) +
+geom_point(mapping = aes(x = displ, y = hwy, alpha = class))
+```
+
+## І ще 
+
+```{r}
+ggplot(data = mpg) +
+geom_point(mapping = aes(x = displ, y = hwy, shape = class))
+```
+
+## Завдання. Що не так з цим кодом?
+
+```{r}
+ggplot(data = mpg) +
+geom_point(
+mapping = aes(x = displ, y = hwy, color = "blue")
+)
+```
+
+## Загальний шаблон
+
+ggplot(data = <DATA>) +
+<GEOM_FUNCTION>(mapping = aes(<MAPPINGS>))
+
+Пакет дозволяє створювати графіки пошарово (і ви можете гнучко керувати процесом ан кожному етапі)
+Всі графіки складаються з
+
+* Даних
+* Шарів
+* Естетики (які змінні використовувати)
+* Координатної системи
+* Фасеток
+* Теми
+
+## Завдання для розігріву.
+
+В даному датасеті дані американські 
+  - cty city miles per gallon
+  - hwy highway miles per gallon
+  
+Як перевести галони і милі в кілометри і літри? За допомогою dplyr!
+
+## Відповідь
+
+```{r}
+mpg2 <- mpg %>%
+  mutate(cty2 = cty * 1.609344 / 3.78541178, 
+         hwy2 = hwy * 1.609344 / 3.78541178)
+  
+```
+
+
+## Приклад фасеток
+
+```{r}
+ggplot(mpg2, aes(displ, hwy2)) +
+geom_point() +
+facet_wrap(~class)
+```
+
+
+## Найбільш вживані геоми
+
+* geom_smooth() додає регресію (заданого порядку) і додає його стандартну похибку
+* geom_boxplot() створює box-and-whisker графік для візуалізації статистичних параметрів
+* geom_histogram() та geom_freqpoly() показує розподіл неперервних змінних
+*  geom_bar() показує розподіл категоріальних змінних 
+* geom_path() та geom_line() з'єднують лініями точки. Лінії можуть йти лише з ліва на право, а шляхи як завгодно. 
+
+Давайте спробуємо зробити по графіку кожного типу.
+
+## Регресія
+
+```{r}
+ggplot(data = mpg2,aes(displ, hwy2)) + 
+  geom_smooth() + 
+  geom_point()
+```
+
+## Є багато різних можливостей 
+
+```{r}
+ggplot(mpg2, aes(displ, hwy2)) +
+geom_point() +
+geom_smooth(span = 0.2)
+```
+
+## Лінійна регресія
+
+```{r}
+ggplot(mpg2, aes(displ, hwy2)) +
+geom_point() +
+geom_smooth(method = "lm")
+```
+
+## 
+
+```{r}
+ggplot(data = mpg) +
+geom_smooth(mapping = aes(x = displ, y = hwy,linetype = drv))
+```
+
+## Boxplot
+
+```{r}
+ggplot(data = mpg2,aes(drv, hwy2)) + 
+  geom_boxplot()
+```
+
+
+## Інші приклади 
+
+```{r,eval=FALSE}
+ggplot(mpg, aes(drv, hwy)) + geom_jitter()
+ggplot(mpg, aes(drv, hwy)) + geom_boxplot()
+ggplot(mpg, aes(drv, hwy)) + geom_violin()
+```
+
+## Гістограма
+
+```{r}
+ggplot(mpg, aes(hwy)) + geom_histogram()
+```
+
+## Стовпчикова діаграма
+
+```{r}
+ggplot(mpg, aes(manufacturer)) +
+geom_bar()
+```
+
+## Всі геоми 1
+
+1. **geom_abline** alpha, color, fill, linetype, size
+
+2.  **geom_area** x, ymax (ymin fix to 0) alpha, color, fill, linetype, size
+
+3. **geom_bar** x alpha, color, fill, linetype, size,
+weight
+
+4. **geom_boxplot** lower, middle, upper, ymax, ymin x, alpha, color, fill, linetype, shape,
+size, weight
+
+5. **geom_density** x, y alpha, color, fill, linetype, size, weight
+
+6. **geom_dotplot** x, y alpha, color, fill
+
+7. **geom_histogram** x alpha, color, fill, linetype, size, weight
+
+8. **geom_hline** alpha, color, linetype, size
+
+## Всі геоми 2
+
+9. **geom_jitter** x, y alpha, color, fill, shape, size
+
+10. **geom_line** x, y alpha, color, linetype, size
+
+11. **geom_point** x, y alpha, color, fill, shape, size
+
+12. **geom_ribbon** x, ymax, ymin alpha, color, fill, linetype, size
+
+13. **geom_smooth** x, y alpha, color, fill, linetype, size, weight
+
+14. **geom_text** label, x, y alpha, angle, color, family, fontface, hjust, lineheight, size, vjust
+
+## Приклад цікавої неочевидної візуалізації
+
+```{r,echo=FALSE}
+presidential <- subset(presidential, start > economics$date[1])
+
+ggplot(economics) +
+  geom_rect(
+    aes(xmin = start, xmax = end, fill = party),
+    ymin = -Inf, ymax = Inf, alpha = 0.2,
+    data = presidential
+            ) +
+geom_vline(
+  aes(xintercept = as.numeric(start)),
+      data = presidential,
+      colour = "grey50", alpha = 0.5
+          ) +
+geom_text(
+  aes(x = start, y = 2500, label = name),
+      data = presidential,
+      size = 3, vjust = 0, hjust = 0, nudge_x = 50
+        ) +
+geom_line(aes(date, unemploy)) +
+scale_fill_manual(values = c("blue", "red")) + 
+xlab("Date") + 
+ylab("Unemplyment rate")  
+```
+
+
+## Призначення шарів
+
+1. Для відображення даних. В кожному графіку є як мінімум один шар (інакше буде помилка)
+
+2. Для відображення статистичних характеристик даних. Іноді ми отримуємо додаткову інформацію накладаючи результати моделей на той самий графік.  
+
+3. Для додавання метаданих: контексту, анотацій, посилань. Метадані можуть бути у вигляді підписаних або виділених окремих точок або класів даних. 
+
+## Для розуміння структури пакету пройдемось по граматиці 
+
+
+```{r,eval=FALSE}
+ggplot(mpg, aes(displ, hwy, colour = cyl)) +
+geom_point()
+ggplot(mpg, aes(displ, hwy, colour = factor(cyl))) +
+geom_point()
+```
+
+## Більш складний приклад
+
+```{r}
+ggplot(mpg, aes(displ, hwy)) +
+geom_point() +
+geom_smooth() +
+facet_wrap(~year)
+```
+
+
+## Будуємо графік шар за шаром
+
+```{r}
+p <- ggplot(mpg, aes(displ, hwy))
+p
+```
+
+
+## Додамо геом - точки
+
+```{r}
+p + geom_point()
+```
+
+## Geom_point() це скорочення функції layer()
+
+```{r}
+p + layer(
+        mapping = NULL,
+        data = NULL,
+        geom = "point", 
+        stat = "identity", 
+        position = "identity"
+          )
+```
+
+## Головні елементи кожного шару
+
+* mapping: відображення, множина естетик, визначена функцією aes().
+* data: дані, які можуть  переписати початковий датасет графіка. 
+* geom: назва геометричного об'єкту, який використовується для прорисовки кожного виміру. Геом може мати додаткові аргументи.  
+* stat: назва статистичного перетворення даних. Результат зображається на графіку. 
+* position: розташування, використовується для роботи з об'єктами, які накладаються.
+
+## Додамо вручну регресію
+
+```{r}
+mod <- loess(hwy ~ displ, data = mpg)
+grid <- data_frame(displ = seq(min(mpg$displ), max(mpg$displ), length = 50))
+grid$hwy <- predict(mod, newdata = grid)
+grid
+```
+
+## Далі відкинемо занадто далекі точки
+
+```{r}
+std_resid <- resid(mod) / mod$s
+outlier <- filter(mpg, abs(std_resid) > 2)
+outlier
+```
+
+## Тепер додамо лінію на графік
+```{r}
+ggplot(mpg, aes(displ, hwy)) +
+geom_point() +
+geom_line(data = grid, colour = "blue", size = 1.5) +
+geom_text(data = outlier, aes(label = model))
+```
+
+
+## Також можливо визначити датасет для кожного шару окремо
+
+```{r}
+ggplot(mapping = aes(displ, hwy)) +
+geom_point(data = mpg) +
+geom_line(data = grid) +
+geom_text(data = outlier, aes(label = model))
+```
+
+## Завдання.
+
+```{r,echo=FALSE}
+class <- mpg %>%
+group_by(class) %>%
+summarise(n = n(), hwy = mean(hwy))
+
+ggplot(mpg,aes(class,hwy) ) + 
+  geom_jitter(aes(class,hwy),width = 0.1) + 
+  geom_point(data = class,aes(x = class, y= hwy,size = n),color = "red")
+
+```
+
+
+
+## Можна використовувати функції dplyr
+
+```{r}
+ggplot(data = mpg, mapping = aes(x = displ, y = hwy)) +
+geom_point(mapping = aes(color = class)) +
+geom_smooth(
+            data = filter(mpg, class == "subcompact"),
+            se = FALSE
+            )
+```
+
+## Статистичні перетворення
+
+```{r}
+ggplot(data = mpg) +
+geom_bar(mapping = aes(x = manufacturer))
+```
+
+## Створення нової змінної
+
+```{r}
+ggplot(data = mpg) +
+stat_count(mapping = aes(x = manufacturer))
+```
+
+## Навіщо? Більша гнучкість, можна. наприклад, перевантажувати операції за замовчуванням
+
+```{r}
+ggplot(data = mpg) +
+geom_bar(
+mapping = aes(x = manufacturer, y = ..prop.., group = 2)
+)
+```
+
+## Зі статистичними перетвореннями можливостей ще більше
+
+```{r}
+ggplot(data = mpg) +
+stat_summary(
+            mapping = aes(x = manufacturer, y = displ),
+            fun.ymin = min,
+            fun.ymax = max,
+            fun.y = median,
+            alpha = 0.5
+              ) + 
+stat_summary(
+            mapping = aes(x = manufacturer, y = displ),
+            fun.ymin = min,
+            fun.ymax = max,
+            fun.y = mean,
+            color = "red",
+            alpha = 0.7
+              )  
+
+```
+
+
+## Налаштування позиції.
+
+```{r}
+ggplot(data = mpg) +
+geom_bar(mapping = aes(x = class, color = class))
+```
+
+## Як тільки ми додамо іншу змінну
+
+```{r}
+ggplot(data = mpg) +
+geom_bar(mapping = aes(x = drv, fill = class))
+```
+
+
+## Це стакінг - тобто складання.
+
+Якщо ми не хочемо такого, треба вказати це явно
+
+```{r}
+ggplot(data = mpg) +
+geom_bar(mapping = aes(x = drv, fill = class), alpha = 1/5, position = "identity")
+```
+
+## Це стакінг - тобто складання.
+
+Якщо ми не хочемо такого, треба вказати це явно
+
+```{r}
+ggplot(data = mpg) +
+geom_bar(mapping = aes(x = drv, fill = class), position = "fill")
+```
+
+## Це стакінг - тобто складання.
+
+Якщо ми не хочемо такого, треба вказати це явно
+
+```{r}
+ggplot(data = mpg) +
+geom_bar(mapping = aes(x = drv, fill = class), position = "dodge")
+```
+
+## Трансформації координат
+
+```{r}
+ggplot(data = mpg, mapping = aes(x = class, y = hwy)) +
+geom_boxplot()
+```
+## Трансформації координат
+
+```{r}
+ggplot(data = mpg, mapping = aes(x = class, y = hwy)) +
+geom_boxplot() +
+coord_flip()
+```
+
+## Розмір пропорційний кількості 
+
+```{r}
+ggplot(mpg, aes(cty, hwy)) + geom_count(col="tomato", show.legend=F)
+```
+
+## Країни світу
+
+```{r}
+library(maps)
+library(ggplot2)
+
+world_map <- map_data("world2")
+ggplot(world_map, aes(x=long, y=lat, group=group, fill=region)) +
+  geom_polygon(colour="black") + 
+  scale_fill_brewer(palette="Set2")
+```
+
+## Азія
+
+```{r}
+east_asia <- map_data("world", region=c("Japan", "China", "North Korea",
+"South Korea"))
+ggplot(east_asia, aes(x=long, y=lat, group=group, fill=region)) +
+geom_polygon(colour="black") +
+scale_fill_brewer(palette="Set2")
+```
+
+## Україна
+
+```{r}
+east_europe <- map_data("world", region=c("Ukraine", "Poland", "Moldova", "Romania"))
+ggplot(east_europe, aes(x=long, y=lat, group=group, fill=region)) +
+geom_polygon(colour="black") +
+coord_quickmap()
+```
+
+## Перехід в полярні координати
+
+```{r}
+bar <- ggplot(data = diamonds) +
+geom_bar(
+mapping = aes(x = cut, fill = cut),
+show.legend = FALSE,
+width = 1
+) +
+theme(aspect.ratio = 1) +
+labs(x = NULL, y = NULL)
+bar + coord_flip()
+```
+## Перехід
+
+```{r}
+bar + coord_polar()
+```
+
+## Невеликий адд-он
+
+```{r}
+library(gtrendsR)
+t <- gtrends("НАУКМА", geo = "UA")
+str(t)
+```
+## Графік
+
+```{r}
+s <- t$interest_over_time
+ggplot(s,aes(date,hits)) + geom_line()
+```
+
+
