@@ -1,0 +1,369 @@
+---
+title: "Lecture5. Схема аналізу"
+author: "Олексій Ігнатенко"
+date: "October 5, 2019"
+output:
+  ioslides_presentation:
+    widescreen: true
+    smaller: false
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+```
+
+## Exploratory Data Analysis
+
+Візьмемо дані з марафону ВізЕйр 2018 року. 
+
+```{r}
+library(readr)
+maraphon <- read_delim("maraphon.csv",
+                       delim=";",
+                       col_names = c("Name","gender","id","year",
+                                     "age_group","club","city","country",
+                                     "place", "net_time", "gross_time"))
+```
+
+## Основні інструменти. Описова статистика
+
+
+  - Mean - arithmetic average
+  -  Median - middle value
+  -  Mode - most frequent value
+  -  Standard Deviation - variation around the mean
+  -  Interquartile Range - range encompasses 50% of the values
+  -  Kurtosis - peakedness of the data distribution
+  -  Skewness - symmetry of the data distribution
+
+## Основні інструменти. Графічні методи
+
+  - Histogram - a bar plot where each bar represents the frequency of observations for a given range of values
+  -  Density estimation - an estimation of the frequency distribution based on the sample data
+  -  Quantile-quantile plot - a plot of the actual data values against a normal distribution
+  -  Box plots - a visual representation of median, quartiles, symmetry, skewness, and outliers
+  -  Scatter plots - a graphical display of one variable plotted on the x axis and another on the y axis
+  -  Radial plots - plots formatted for the representation of circular data
+
+## 1. Етап. Вивчення даних
+```{r}
+#Install if the package doesn't exist 
+#install.packages('DataExplorer') 
+library(DataExplorer)
+```
+
+## Характеристики датасету
+
+```{r}
+str(maraphon)
+```
+
+## Характеристики змінних. Стать
+
+```{r, echo=TRUE,eval=TRUE}
+
+maraphon$gender <- factor(maraphon$gender)
+summary(maraphon$gender)
+
+```
+
+## Характеристики змінних. Рік народження.
+
+```{r}
+library(lubridate)
+maraphon$year <- year(parse_date_time(maraphon$year,orders = "y"))
+maraphon$age_group <- factor(maraphon$age_group)
+
+```
+
+## Характеристики змінних. Час - треба повозитись
+
+```{r}
+options(digits.secs=3)
+maraphon$net_time <- gsub(",",".",maraphon$net_time)
+maraphon$net_time <- strptime(maraphon$net_time, "%H:%M:%OS")
+maraphon$gross_time <- gsub(",",".",maraphon$gross_time)
+maraphon$gross_time <- strptime(maraphon$gross_time, "%H:%M:%OS")
+```
+
+## 
+```{r}
+str(maraphon)
+```
+
+## Характеристика кожної змінної. Стать
+
+```{r}
+table(maraphon$gender)
+```
+
+## Характеристика кожної змінної. Рік народження
+
+```{r,eval=FALSE}
+table(maraphon$year)
+hist(maraphon$year)
+
+```
+
+## Характеристика кожної змінної. Рік народження
+
+```{r,echo=FALSE}
+hist(maraphon$year)
+```
+
+## Характеристика кожної змінної. Вікова група
+
+```{r}
+table(maraphon$age_group)
+```
+
+## Характеристика кожної змінної. Країна
+
+```{r}
+table(maraphon$country)
+```
+
+## Завдання. Використати Dplyr
+
+1. Створити новий датафрейм в який вибрати id, age_group, gender, country, net_time
+2. Виборати лише спортсменів з України і видалити колонку country.
+3. Відсортувати всі рядки за часом забігу і додати колонку "загальне місце".
+4. Вибрати першу десятку окремо по кожній віковій групі.
+
+## Описова статистика часу забігу.
+
+1. Потрібно перевести час у число (так зручніше). Найкраще перевести у секунди.
+2. Додати колонку вік
+Як це зробити? (5 хв)
+
+
+
+## Описова статистика часу забігу.
+
+```{r,eval=TRUE}
+library(lubridate)
+t.lub <- ymd_hms(maraphon$net_time)
+hour(t.lub[2])
+minute(t.lub[2])
+second(t.lub[2])
+to_seconds <- function(t) {
+  return(hour(t)*3600 + minute(t)*60 + second(t))
+}
+maraphon$seconds <- to_seconds(maraphon$net_time)
+maraphon$gross_seconds <- to_seconds(maraphon$gross_time)
+maraphon$net_time <- NULL
+maraphon$gross_time <- NULL
+```
+
+## Виберем всі перші місця
+
+```{r,eval=FALSE}
+library(dplyr)
+maraphon %>%
+  filter(place == 1) %>%
+  select(Name,gender,age_group, seconds) %>%
+  arrange(age_group,gender)
+```
+
+## Описова статистика
+
+```{r}
+mean(maraphon$seconds)
+median(maraphon$seconds)
+```
+
+## Мода - найчастіше значення 
+
+```{r}
+sort(table(round(maraphon$year)), decreasing = TRUE)[1]
+```
+
+## Таблиця частот
+
+```{r}
+table(maraphon$gender,maraphon$year)
+```
+
+## Завдання. 
+
+Вивести всі роки, де жінок більше ніж чоловіків.
+
+## Додати суми до таблиці
+
+```{r}
+addmargins(table(maraphon$gender,maraphon$year))
+
+```
+
+
+## Таблиця з відсотками
+
+```{r}
+round(prop.table(table(maraphon$gender,maraphon$year), margin = 2) * 100) 
+```
+
+## Агрегування 1. Час пробігу - стать
+
+```{r}
+library(dplyr)
+maraphon %>%
+  group_by(age_group, gender) %>%
+  summarise(mean_seconds = mean(seconds))
+```
+
+## Квантілі і інші функції
+
+```{r}
+library(dplyr)
+maraphon <- maraphon %>%
+  mutate(age = 2019 - year)
+
+summary(maraphon$age)
+quantile(maraphon$age)
+range(maraphon$age)
+```
+
+## Графічні методи
+
+```{r}
+ggplot(maraphon, aes(age)) + 
+  geom_bar(fill = 'blue')
+```
+
+## Гістограма
+
+Питання - як рознести на два графіка або прибрати накладення?
+```{r,eval=T}
+ggplot(maraphon, aes(x = maraphon$seconds, fill = factor(gender))) + 
+  geom_histogram(bins = 50) + 
+  stat_bin()
+```
+
+## Гістограма
+
+Питання - як рознести на два графіка або прибрати накладення?
+```{r,eval=T}
+ggplot(maraphon, aes(seconds, fill = factor(gender))) + 
+  geom_histogram(bins = 50) + 
+  facet_grid(maraphon$gender)
+```
+
+## Щільність розподілу
+
+```{r,eval=T}
+ggplot(maraphon, aes(seconds, fill = factor(gender))) + 
+  geom_density(bins = 50) + 
+  facet_grid(maraphon$gender)
+```
+
+## Boxplot
+
+```{r,eval=T}
+ggplot(maraphon, aes(gender,seconds)) + 
+  geom_boxplot()
+```
+
+
+## QQ-plot
+
+```{r,eval=T}
+ggplot(maraphon, aes(sample= seconds)) + 
+  geom_qq() +
+  geom_qq_line()
+```
+
+## QQ-plot
+
+```{r}
+ggplot(maraphon, aes(sample = age)) + 
+  geom_qq() +
+  geom_qq_line()
+```
+
+## Точкові графіки
+
+```{r}
+ggplot(maraphon, aes(seconds, age)) +
+  geom_point(aes(color = gender))
+```
+
+
+## За групами і статтю
+
+```{r}
+ggplot(maraphon, aes(seconds, place)) +
+  geom_point(aes(color = age_group, shape = gender),na.rm = TRUE)
+```
+
+
+## пакет DataExplore
+
+```{r}
+plot_missing(maraphon)
+```
+
+## Гістограми
+
+```{r}
+plot_histogram(maraphon)
+```
+
+
+## Кореляції
+
+```{r}
+plot_correlation(maraphon, type = 'continuous','Review.Date')
+```
+
+## Категоріальні змінні
+
+```{r}
+plot_bar(maraphon) 
+```
+
+## Boxplot
+
+```{r}
+plot_boxplot(maraphon, by = "age_group") 
+```
+
+## Точковий графік
+
+```{r}
+plot_scatterplot(maraphon, by = "seconds")
+```
+
+## Кластерізація
+
+```{r}
+kmeansObj <- kmeans(maraphon[c("seconds","age")], centers = 2)
+names(kmeansObj)
+kmeansObj
+
+```
+
+## Кластери
+
+```{r}
+head(table(maraphon$Name, kmeansObj$cluster),20)
+```
+
+## Візуалізація кластерів
+
+```{r}
+maraphon$cluster=factor(kmeansObj$cluster)
+centers=as.data.frame(kmeansObj$centers)
+
+```
+
+## Нарешті
+
+```{r}
+ggplot(data=maraphon, aes(x=seconds, y=age, color=cluster)) + 
+ geom_point() + 
+ geom_point(data=centers, aes(x=seconds,y=age,color='Center')) +
+ geom_point(data=centers, aes(x=seconds,y=age, color='Center'), size=52, alpha=.3) + 
+  theme(legend.position = "none")
+```
+
