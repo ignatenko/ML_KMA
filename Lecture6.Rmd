@@ -1,0 +1,394 @@
+---
+title: "Lecture6"
+author: "Олексій Ігнатенко"
+date: "October 21, 2019"
+output:
+  ioslides_presentation:
+    smaller: no
+    widescreen: yes
+  beamer_presentation: default
+  slidy_presentation: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+```
+
+
+## Моделі потрібні для кращого розуміння даних
+
+При дослідженні "чогось" з реального світу ми часто отримуємо певні дані. Використовуючи ці дані будується модель, яка надалі намагається "передбачити" нові дані. 
+
+Приклад. Роджер Пенг готував нову книжку і запропонував на своєму сайті опитування. Чи цікава вам така книга? Якщо так, то скільки б ви за неї заплатили?
+
+Він отримав наступні відповіді (тих, хто сказав, що книга йому цікава):
+
+```{r}
+l <- c(25, 20, 15, 5, 30, 7, 5, 10, 12, 40, 30, 30, 10, 25, 10, 20, 10, 10, 25, 5)
+```
+
+Як інтерпретувати ці дані? Припустимо ви питаєте аналітика - що кажуть ці дані?
+
+## Найпростіша модель - це відсутність моделі
+
+Якщо аналітик не захоче працювати, він просто надішле ці 20 чисел. Але це буде малозмістовно. Будь-яка модель - це зменшення початкових даних до певних значимих характеристик. 
+
+Наприклад, аналітик може рекомендувати такі статистики (як рекомендація ціни)
+
+```{r}
+mean(l)
+median(l)
+min(l)
+```
+
+Це характеристика, яка говорить нам щось про дані. Можливо варто встановити ціну рівну 17.2? Але що далі, скільки буде покупців? Який прибуток ми отримаємо? 
+
+## Тобто
+
+Проста статистика, така як математичне сподівання недостатня для формулювання **моделі**. Статистична модель має створювати певну структуру на основі даних. По суті, статистична модель містить опис того як "працює світ" і як виникають дані. Модель є очікуванням взаємозв'язку між різними факторами реального світу та тим набором даних, який  є у нашому розпорядженні. Модель перетворюється на статистичну модель, коли ми дозволяємо даним бути наслідком випадкового процесу. 
+
+## Перша ідея
+
+Припустимо, що ціна, яку люди готові заплатити за книжку розподілена нормально. Тоді ми можемо сформувати закон розподілу, використовуючи середне і дисперсію.
+
+```{r}
+pnorm(30, mean = mean(l), sd = sd(l), lower.tail = FALSE)
+df <- data.frame(seq(1:20),l)
+names(df) <- c("number","price")
+```
+
+Лише 11% готові купувати книжку за 30$ 50% готові купувати за 17.2
+
+## Обговорення
+
+Наскільки такий підхід обгрунтований? Це залежить від того який розподіл цін в реальному світі. Але як зрозуміти розподіл цін на продукт, який ще не зроблено?
+
+Давайте зобразимо гістограму тих цін, які у нас є (ви вже знаєте як це зробити).
+
+## Варіант 1
+
+```{r,echo=FALSE}
+hist(df$price, xlab = "Price", prob=TRUE, main = "Оцінка розподілу ціни")
+lines(density(df$price), col="blue", lwd=2)
+```
+
+
+## Варіант 2
+
+```{r,echo=FALSE}
+ggplot(df, aes(price)) + 
+  geom_histogram(binwidth = 5) + 
+  theme_minimal()
+```
+
+## Ще є тестування нормальності
+
+Наскільки цей розподіл нормальний?
+
+```{r,echo=FALSE}
+hist(df$price, xlab = "Price", prob=TRUE, main = "Оцінка розподілу ціни")
+lines(density(rnorm(100, mean = mean(l), sd = sd(l))), col="blue", lwd=2)
+```
+
+## QQ - тест
+
+```{r,echo=FALSE}
+ggplot(df, aes(sample = price)) + 
+  stat_qq() + stat_qq_line()
+```
+
+Висновок: розподіл не нормальний. В залежності від встановленої ціни купить різна кількість людей. Припущення - ця вибірка відображує реальну популяцію покупців.
+
+## Головне питання МН
+
+> Що таке хороша модель?
+
+Слово модель має багато значень та конкретних особливостей. Не зовсім зрозуміло, також, що таке "хороший" в даному контексті. Перший принцип, який тут спадає на думку - що модель має не просто добре описувати існуючі дані, а давати хороші результати на нових (або не використаних при побудові) даних. 
+Один зі способів тут - розділення всіх відомих даних на навчальну і тестову частини.
+
+## Datasets
+
+```{r,eval=FALSE}
+library(help = "datasets")
+```
+
+Some datasets
+
+  - AirPassengers           Monthly Airline Passenger Numbers 1949-1960
+  - ChickWeight             Weight versus age of chicks on different diets
+  - HairEyeColor            Hair and Eye Color of Statistics Students
+  - Loblolly                Growth of Loblolly pine trees
+  - Orange                  Growth of Orange Trees
+  - PlantGrowth             Results from an Experiment on Plant Growth
+  - Titanic                 Survival of passengers on the Titanic
+  - airquality              New York Air Quality Measurements
+  - anscombe                Anscombe's Quartet of 'Identical' Simple Linear regressions
+
+## Datasets 2
+
+  - beavers                 Body Temperature Series of Two Beavers
+  - discoveries             Yearly Numbers of Important Discoveries
+  - faithful                Old Faithful Geyser Data
+  - islands                 Areas of the World's Major Landmasses
+  - mtcars                  Motor Trend Car Road Tests
+  - presidents              Quarterly Approval Ratings of US Presidents
+  - treering                Yearly Treering Data, -6000-1979
+  - trees                   Girth, Height and Volume for Black Cherry Trees
+  - women                   Average Heights and Weights for American Women
+
+## Спочатку переглянемо декілька датасетів
+
+Дерева Orange
+
+```{r,echo=FALSE}
+ggplot(data = Orange,aes(age, circumference)) + 
+  geom_point(size = 3, color = "blue")
+```
+
+##
+
+```{r,echo=FALSE}
+ggplot(data = Orange,aes(age, circumference)) + 
+  geom_point(size = 2, color = Orange$Tree)
+```
+
+## Бобри
+
+```{r,echo=FALSE}
+ggplot(data = beaver1,aes(time, temp)) + 
+  geom_point(size = 3, shape = beaver1$activ)
+  
+```
+## Гейзер
+
+```{r,echo=FALSE}
+ggplot(data = faithful,aes(eruptions, waiting)) + 
+  geom_point(size = 1)
+  
+```
+
+## Будь-яка модель це відображення 
+
+Модель $f(x)$ - це відображення з простору вхідних значень $X$ в простір результуючих значень $Y$ з певними значеннями параметрів. Ми вважаємо, що між змінними $x$ та $y$ є зв'язок, і хочемо його проявити. 
+
+Одна з найпростіших моделей взаємозв'язків є лінійна залежність.
+
+$$f(x) = a1 + a2\cdot x$$
+
+## Лінійна регресія
+
+По суті лінійна регресія допомагає: 
+
+  - Прогнозувати значення
+  - Переводити зв'язок між змінними в числовий вираз
+  
+Перша частина відноситься до ситуацій, коли потрібно визначити значення Y для деяких нових X. 
+Друга частина - коли є історичні дані, які потрібно зв'язати з певною гарантією.
+
+## Проблема оцінки параметрів ЛР
+
+Отже, у нас є "реальний процес" з лінійним взаємозв'язком
+
+## Спробуємо розв'язати задачу "в лоб" 
+
+```{r}
+library(dplyr)
+models <- tibble(
+a1 = runif(500, -30, 30),
+a2 = runif(500, 0, 0.3)
+)
+ggplot(Orange, aes(age, circumference)) +
+geom_abline(
+aes(intercept = a1, slope = a2),
+data = models, alpha = 1/4
+) +
+geom_point()
+```
+
+## Додамо помилку
+
+Звичайно, багато з цих моделей є дуже поганими. Спробуємо відсікти частину.
+
+```{r}
+model1 <- function(a, data){
+a[1] + data$age * a[2]
+}
+
+measure_distance <- function(mod, data) {
+diff <- data$circumference - model1(mod, data)
+sqrt(mean(diff ^ 2))
+}
+```
+
+## Додамо до кожної регресії помилку
+
+```{r}
+sim1_dist <- function(a1, a2) {
+measure_distance(c(a1, a2), Orange)
+}
+```
+
+```{r,eval=T}
+dist1 <- c(1:length(models$a1))
+for (i in 1:length(models$a1)){
+dist1[i] <- measure_distance(c(models$a1[i], models$a2[i]), Orange) 
+}
+
+models$dist <- dist1
+```
+
+## Виберемо 10 кращих
+
+```{r}
+ggplot(Orange, aes(age, circumference)) +
+geom_point(size = 2, color = "grey30") +
+geom_abline(
+aes(intercept = a1, slope = a2, color = -dist),
+data = filter(models, rank(dist) <= 10)
+)
+```
+
+## Можна виділити ці точки (перетин + нахил)
+
+```{r}
+ggplot(models, aes(a1, a2)) +
+geom_point(
+data = filter(models, rank(dist) <= 5),
+size = 4, color = "red"
+) +
+geom_point(aes(colour = -dist))
+```
+
+## Найкраще наближення
+
+```{r,echo=FALSE}
+s <- as.data.frame(models)
+s <- arrange(s, desc(dist))
+ggplot(Orange, aes(age, circumference)) +
+geom_point(size = 2, color = "grey30") +
+geom_abline(intercept = s[500,]$a1, slope = s[500,]$a2)
+
+```
+
+## Стандартна функція R для лінійних моделей
+
+Результат підбору :
+
+```{r}
+s[500,]
+```
+
+```{r}
+lm_mod <- lm(circumference ~ age, data = Orange)
+coef(lm_mod)
+summary(lm_mod)
+```
+
+## Завдання 
+
+1. Розбити регресії за деревами та вивести модель для кожного. 
+2. Як би ви побудували об'єднану модель? Що об'єднувати?
+3. Як порівняти помилку попередньої моделі і нової?
+
+## Бібліотека modelr
+
+```{r}
+library(modelr)
+grid <- faithful %>%
+data_grid(eruptions,waiting)
+grid
+```
+
+## Визначаємо модель та створюємо предіктор
+
+```{r}
+faithful_mod <- lm(eruptions ~ waiting, data = faithful)
+grid <- grid %>%
+add_predictions(faithful_mod)
+grid
+```
+## Візуалізація
+
+```{r}
+ggplot(faithful, aes(waiting)) +
+  geom_point(aes(y = eruptions)) +
+  geom_line(
+    aes(y = pred),
+    data = grid,
+    colour = "red",
+    size = 1
+  )
+```
+
+## Лишки і їх візуалізація
+
+```{r}
+my_faithful <- as.data.frame(faithful)
+my_faithful <- my_faithful %>%
+add_residuals(faithful_mod)
+my_faithful
+```
+
+## Візуалізація
+
+```{r}
+ggplot(my_faithful, aes(waiting, resid)) +
+geom_ref_line(h = 0) +
+geom_point()
+```
+
+## Отже ідея методу найменших квадратів
+
+```{r}
+ggplot(my_faithful, aes(waiting)) +
+  geom_point(aes(y = eruptions)) +
+  geom_line(
+    aes(y = pred),
+    data = grid,
+    colour = "red",
+    size = 1
+  ) +
+  geom_segment(aes(x = waiting,y = eruptions, xend = waiting, yend = eruptions - resid), color = "blue")
+```
+
+## Властивості лінійної регресії
+
+1. $\sum_i e_i = 0$
+2. $\sum_i y_i = \sum_i \hat{y}_i$
+3. $\sum_i x_ie_i = 0$
+4. $\sum_i \hat{y}_ie_i  = 0$
+5. $\sum e_i^2 \rightarrow  min$
+6. Лінія регресії завжди проходить через $\bar{x}, \bar{y}$ 
+
+## Теоретична проблема оцінки
+
+Отже, у нас є значення $x_i, y_i$, які є вимірами певного процесу. Ми "підозрюємо", що залежність між цими змінними лінійна, але виміри відбуваються з помилками. Тобто, ми пробуємо оцінити коефіціенти залежності $y_i = \beta_0 + \beta_1 x_i + \epsilon_i$.  
+
+Лишок, це різниця між модельним значенням і виміром. 
+
+$$SSE = \sum_{i = 1...n} (y_i - \hat{y}_i)^2$$
+Це sum square error. Критерій найменших квадратів означає, що модель намагається отримати **найменшу** можливу помилку. Для одновимірної лінійної регресії це можливо зробити у явному вигляді.  
+
+## Для самостійного опрацювання
+
+1. Оцінка шансів виживання пасажирів Титаніка. Джерело: Kaggle.
+2. Мультифакторна регресія. Як об'єднувати різні однофакторні регресії. Джерело: Фармак, звіт.
+
+## Лабораторна № 2. Лінійна регресія, об'єднання різнорідних даних.
+
+Варіанти. 
+
+1. Dataset airpassenger. Побудувати загальну регресію та регресії для кожного місяця по рокам. Перевірити властивості регресії. Яка модель дає найкращий результат? Обчислити основні характеристики та оформити візуалізацію з використанням бібліотеки ggplot2. 
+
+2. Dataset islands. Побудувати загальну лінійну регресію. Виділити частини, які дають найбілшу помилку. Як розбити датасет на частини, щоб отримати кращий результат. Обчислити основні характеристики моделі та оформити візуалізацію з використанням бібліотеки ggplot2.    
+
+3. Dataset trees. Проаналізувати можливі залежності між трьома змінними та перевірити їх моделюванням за допомогою лінійної регресії. Зробити висновок про лінійність. Обчислити основні характеристики моделі та оформити візуалізацію з використанням бібліотеки ggplot2.
+
+4. Loblolly dataset. Побудувати регресії для кожного дерева окремо та об'єднану модель. Обчислити основні характеристики моделі та оформити візуалізацію з використанням бібліотеки ggplot2. 
+
+ 
+
+
+
+
