@@ -1,0 +1,449 @@
+---
+title: "Lecture 7. Titanic case. Logistic regression"
+author: "Олексій Ігнатенко"
+date: "November 3, 2019"
+output:
+  ioslides_presentation:
+    smaller: no
+    widescreen: yes
+  beamer_presentation: default
+  slidy_presentation: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+```
+
+## Titanic dataset і його аналіз
+
+Завантажимо датасет
+
+```{r}
+train <- read.csv("Titanic/train.csv", stringsAsFactors = FALSE)
+test <- read.csv("Titanic/titanic_test.csv", stringsAsFactors = FALSE)
+```
+
+## Дані, що вони показують
+
+```{r}
+str(train)
+```
+
+## Отже почнемо
+
+Підключимо tidyverse
+
+```{r}
+library(tidyverse)
+```
+
+## Давайте проглянемо датасет
+
+Швидко перевірити відсутні дані можна так:
+
+```{r}
+colSums(is.na(train)|train=='')
+```
+
+## Завдання:
+
+Вивести наступні характеристики:
+
+1. Відсоток чоловіків і жінок.
+2. Відсоток пасажирів кожного класу.
+3. Відсоток виживших взагалі і за статтю.
+4. Таблицю, де є чоловіки і жінки та клас - на перетині відсоток виживших.
+
+## Тестова вибірка
+
+```{r}
+str(test)
+```
+
+## Перше наближення і його точність
+
+```{r}
+get_prediction_evalvation <- function(pred){
+  percent <- test %>% 
+    count(test$Survived== pred)
+  names(percent) <- c("cond","n")
+  return(percent$n[percent$cond == TRUE]/nrow(test))
+}
+```
+
+## Перевіримо
+
+```{r}
+pred <- rep(0, nrow(test))
+get_prediction_evalvation(pred)
+pred <- rep(1, nrow(test))
+get_prediction_evalvation(pred)
+```
+
+## Заповнення відсутніх даних
+
+```{r}
+filter(train, is.na(Fare)==TRUE|Fare=='')
+```
+## Розподіл вартості проїзду пасажирів третього класу з Саусгемптона
+
+```{r,echo=FALSE}
+ggplot(filter(train, Pclass==3 & Embarked=="S"), aes(Fare)) +                       
+  geom_density(fill="blue", alpha=0.5) +
+  geom_vline(aes(xintercept=median(Fare, na.rm=T)), colour='darkblue', linetype='dashed', size=2) +
+  geom_vline(aes(xintercept=mean(Fare, na.rm=T)), colour='red', linetype='dashed', size=2) +
+  ggtitle("Розподіл вартості проїзду пасажирів третього класу з Саусгемптона") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+## Додамо пропущене значення
+
+```{r}
+train$Fare[is.na(train$Fare)==TRUE] = median(filter(train, Pclass==3 & Embarked=="S")$Fare, na.rm=TRUE)
+filter(train, is.na(Fare)==TRUE|Fare=='')
+```
+
+## Пропущені дані з місця посадки
+
+```{r}
+filter(train, is.na(Embarked)==TRUE|Embarked=='')
+```
+
+## Подивимось ймовірність місця посадки пасажирів першого класу
+
+```{r}
+table(filter(train, Pclass==1)$Embarked)
+```
+
+## 
+
+```{r,echo=FALSE}
+ggplot(filter(train, is.na(Embarked)==FALSE & Embarked!='' & Pclass==1), 
+       aes(Embarked, Fare)) +     
+  geom_boxplot(aes(colour = Embarked)) +
+  geom_hline(aes(yintercept=80), colour='red', linetype='dashed', size=2) +
+  ggtitle("Розподіл вартості проїзду пасажирів першого класу") +
+  theme_bw() + 
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+## Замінимо порт на С
+
+```{r}
+train$Embarked[train$Embarked==""] = "C"
+colSums(is.na(train)|train=='')
+```
+
+
+## Вік
+
+```{r,echo=FALSE}
+ggplot(train,aes(Pclass,Age)) +                                                  
+  geom_boxplot(aes(fill=factor(Pclass)),alpha=0.5) +
+  ggtitle("Age distribution based on Pclass")
+```
+
+## Додамо генерацію віку в залежності від класу кабіни
+
+```{r}
+# Imputation of Age based on Pclass
+impute.age <- function(age,class){
+  vector <- age
+  for (i in 1:length(age)){
+    if (is.na(age[i])){
+      if (class[i] == 1){
+        vector[i] <- round(mean(filter(train,Pclass==1)$Age, na.rm=TRUE),0)
+      }else if (class[i] == 2){
+        vector[i] <- round(mean(filter(train,Pclass==2)$Age, na.rm=TRUE),0)
+      }else{
+        vector[i] <- round(mean(filter(train,Pclass==3)$Age, na.rm=TRUE),0)
+      }
+    }else{
+      vector[i]<-age[i]
+    }
+  }
+  return(vector)
+}
+```
+
+## Додавання віку
+
+```{r}
+imputed.age <- impute.age(train$Age,train$Pclass)
+train$Age <- imputed.age
+```
+
+## Вік після операції
+
+```{r,echo=FALSE}
+ggplot(train,aes(Pclass,Age)) +                                                  
+  geom_boxplot(aes(fill=factor(Pclass)),alpha=0.5) +
+  ggtitle("Розподіл віку в залежності від класу")
+```
+
+## Кабіна
+```{r}
+colSums(is.na(train)|train=='')
+```
+
+Дуже багато пропущених значень номеру каюти, тому не будемо генерувати.
+
+## Feature engineering
+
+Було б непогано виділити звернення? Можливо незаміжніх рятують краще за інших. А жінок рятують краще за чоловіків? 
+
+```{r}
+head(train$Name)
+```
+
+## Трохи роботі зі строками
+
+```{r}
+train$Title <- gsub("^.*, (.*?)\\..*$", "\\1", train$Name)
+table(train$Sex, train$Title)
+```
+але їх тут дуже багато
+
+## Зменшимо кількість
+
+```{r}
+train$Title[train$Title == 'Mlle' | train$Title == 'Ms'] <- 'Miss' 
+train$Title[train$Title == 'Mme']  <- 'Mrs' 
+
+Other <- c('Dona', 'Dr', 'Lady', 'the Countess','Capt', 
+           'Col', 'Don', 'Jonkheer', 'Major', 'Rev', 'Sir')
+train$Title[train$Title %in% Other]  <- 'Other'
+
+table(train$Sex, train$Title)
+```
+
+## Розмір сім'ї
+
+```{r}
+FamilySize <- train$SibSp + train$Parch + 1
+
+table(FamilySize)
+```
+Знов таки - багато категорій
+
+## Три типи сім'ї
+
+```{r}
+train$FamilySize <- sapply(1:nrow(train), function(x) 
+                          ifelse(FamilySize[x]==1, "Single", 
+                          ifelse(FamilySize[x]>4, "Large", "Small")))
+
+table(train$FamilySize)
+```
+
+## Аналіз даних
+
+```{r}
+train$Survived = factor(train$Survived)
+train$Pclass = factor(train$Pclass)
+train$Sex = factor(train$Sex)
+train$Embarked = factor(train$Embarked)
+train$Title = factor(train$Title)
+train$FamilySize = factor(train$FamilySize, levels=c("Single","Small","Large"))
+
+#Checking the structure of the data
+str(train)
+```
+
+## Виживання за класом
+
+```{r,echo=FALSE}
+percent <- c("0%","5%","10%","15%","20%","25%","30%","35%","40%","45%","50%","55%","60%")
+ggplot(filter(train, is.na(Survived)==FALSE), aes(Pclass, fill=Survived)) + 
+  geom_bar(aes(y = (..count..)/sum(..count..)), alpha=0.9, position="dodge") +
+  scale_fill_brewer(palette = "Dark2", direction = -1) +
+  scale_y_continuous(labels=percent, breaks=seq(0,0.6,0.05)) +
+  ylab("Percentage") + 
+  ggtitle("Survival Rate based on Pclass") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+## Виживання 
+
+```{r,echo=FALSE}
+percent <- c("0%","5%","10%","15%","20%","25%","30%","35%","40%")
+ggplot(filter(train, is.na(Survived)==FALSE), aes(Sex, fill=Survived)) + 
+  geom_bar(aes(y = (..count..)/sum(..count..)), alpha=0.9) +
+  facet_wrap(~Pclass) + 
+  scale_fill_brewer(palette = "Dark2", direction = -1) +
+  scale_y_continuous(labels=percent, breaks=seq(0,0.4,0.05)) +
+  ylab("Percentage") + 
+  ggtitle("Survival Rate based on Pclass and Sex") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+## Мозаїкплот
+
+```{r}
+mosaicplot(~ Title + Survived, data=train, main='Survival Rate based on Title', shade=TRUE)
+```
+
+##
+
+```{r,echo=FALSE}
+percent <- c("0%","10%","20%","30%","40%","50%","60%","70%","80%","90%","100%")
+ggplot(filter(train, is.na(Survived)==FALSE), aes(Title)) + 
+  geom_bar(aes(fill=Survived), alpha=0.9, position="fill") +
+  facet_wrap(~Pclass) + 
+  scale_fill_brewer(palette="Set1") +
+  scale_y_continuous(labels=percent, breaks=seq(0,1,0.1)) +
+  ylab("Percentage") + 
+  ggtitle("Survival Rate based on Pclass and Title") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+## 
+
+```{r}
+mosaicplot(~ FamilySize + Survived, data=train, 
+           main='Survival Rate based on FamilySize', shade=TRUE)
+```
+
+##
+
+```{r,echo=FALSE}
+ggplot(filter(train, is.na(Survived)==FALSE), aes(Title)) + 
+  geom_bar(aes(fill=Survived), alpha=0.9, position="fill") +
+  facet_wrap(~FamilySize) + 
+  scale_fill_brewer(palette="Set1") +
+  scale_y_continuous(labels=percent, breaks=seq(0,1,0.1)) +
+  ylab("Percentage") + 
+  ggtitle("Survival Rate based on FamilySize and Title") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+## Sex-class model
+
+```{r}
+train$Survived <- as.numeric(train$Survived)
+gender_model <- lm(Survived~Sex, data=train)
+
+train$gender_model_pred <- round(predict(gender_model, train))
+nrow(train[train$gender_model_pred==
+             train$Survived,])/891
+
+v <- round(predict(gender_model, test)) - 1
+v
+```
+
+## Перевірка на тестовій вибірці
+
+```{r}
+fare_model <- lm(Survived~Fare, data=train)
+
+train$fare_model_pred <- round(predict(fare_model, train))
+nrow(train[train$fare_model_pred==
+             train$Survived,])/891
+
+
+```
+
+## Перевіримо гіпотезу, що дітей і жінок рятували першими
+
+```{r}
+summary(train$Sex)
+```
+
+## Потрібні відсотки
+
+```{r}
+prop.table(table(train$Sex, train$Survived))
+```
+
+
+## Інший напрямок агрегування
+
+```{r}
+prop.table(table(train$Sex, train$Survived),1)
+```
+
+## Перевіримо на тестовій вибірці
+
+```{r}
+test$Survived_pred <- 0
+test$Survived_pred[test$Sex == 'female'] <- 1
+get_prediction_evalvation(test$Survived_pred)
+
+```
+Wow!
+
+## Але звичайно тут маленька тестова вибірка. Давайте візьмемо більшу
+
+
+
+## Додамо вік
+
+```{r}
+summary(train$Age)
+```
+
+## Змінна діти
+
+```{r}
+train$Child <- 0
+train$Child[train$Age < 18] <- 1
+```
+
+## Модель
+
+```{r}
+aggregate(Survived ~ Child + Sex, data=train, FUN=sum)
+```
+
+## 
+
+```{r}
+aggregate(Survived ~ Child + Sex, data=train, FUN=length)
+```
+
+## Proportion
+
+```{r}
+train$Survived <- ifelse(train$Survived == 1, 0, 1)
+aggregate(Survived ~ Child + Sex, data=train, FUN=function(x) {sum(x)/length(x)})
+```
+
+## Додамо в модель стать
+
+```{r}
+aggregate(Survived ~ Child + Sex, data=train, FUN=function(x) {sum(x)/length(x)})
+```
+
+## Додамо клас
+
+```{r}
+train$Fare2 <- '30+'
+train$Fare2[train$Fare < 30 & train$Fare >= 20] <- '20-30'
+train$Fare2[train$Fare < 20 & train$Fare >= 10] <- '10-20'
+train$Fare2[train$Fare < 10] <- '<10'
+```
+
+
+## Тепер
+
+```{r}
+aggregate(Survived ~ Fare2 + Pclass + Sex, data=train, FUN=function(x) {sum(x)/length(x)})
+```
+
+## New prediction
+
+```{r}
+test$Survived <- 0
+test$Survived[test$Sex == 'female'] <- 1
+test$Survived[test$Sex == 'female' & test$Pclass == 3 & test$Fare >= 20] <- 0
+```
+
