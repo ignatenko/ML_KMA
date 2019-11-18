@@ -475,3 +475,75 @@ write.csv(submit, file = "myfirstdtree.csv", row.names = FALSE)
 ```{r}
 knitr::include_graphics("Submission6.png")
 ```
+
+## Випадкові ліси. Модифікуємо склад сім'ї
+
+```{r}
+combi$FamilyID2 <- combi$FamilyID
+combi$FamilyID2 <- as.character(combi$FamilyID2)
+combi$FamilyID2[combi$FamilySize <= 3] <- 'Small'
+combi$FamilyID2 <- factor(combi$FamilyID2)
+
+combi$Title <- factor(combi$Title)
+
+combi$Fare2 <- '30+'
+combi$Fare2[combi$Fare < 30 & combi$Fare >= 20] <- '20-30'
+combi$Fare2[combi$Fare < 20 & combi$Fare >= 10] <- '10-20'
+combi$Fare2[combi$Fare < 10] <- '<10'
+combi$Fare2 <- factor(combi$Fare2)
+
+```
+
+## Додаємо ліси
+
+```{r}
+library(randomForest)
+set.seed(415)
+```
+
+## Запустити просто
+
+```{r}
+train <- combi[1:891,]
+test <- combi[892:1309,]
+colSums(is.na(train)|train=='')
+fit <- randomForest(as.factor(Survived) ~ Pclass + Sex + Age  + Fare2 +
+                                            Embarked + Title + FamilySize + FamilyID2,
+                      data=train, 
+                      importance=TRUE, 
+                      ntree=2000)
+```
+
+## Що там в середині
+
+```{r}
+varImpPlot(fit)
+```
+
+## Створюємо передбачення
+
+```{r}
+Prediction <- predict(fit, test)
+submit <- data.frame(PassengerId = test$PassengerId, Survived = Prediction)
+write.csv(submit, file = "firstforest.csv", row.names = FALSE)
+```
+##
+```{r}
+library(party)
+set.seed(415)
+fit <- cforest(as.factor(Survived) ~ Pclass + Sex + Age + SibSp + Parch + Fare2 +
+                                       Embarked + Title + FamilySize + FamilyID,
+                 data = train, 
+                 controls=cforest_unbiased(ntree=2000, mtry=3))
+```
+##
+```{r,eval=FALSE}
+set.seed(415)
+fit <- cforest(as.factor(Survived) ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked + Title + FamilySize + FamilyID,
+               data = train, controls=cforest_unbiased(ntree=2000, mtry=3)) 
+# Now let's make a prediction and write a submission file
+Prediction <- predict(fit, test, OOB=TRUE, type = "response")
+submit <- data.frame(PassengerId = test$PassengerId, Survived = Prediction)
+write.csv(submit, file = "ciforest.csv", row.names = FALSE)
+```
+
