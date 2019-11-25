@@ -3,10 +3,10 @@ title: "Lecture 8. Titanic case. Let's kaggle"
 author: "Олексій Ігнатенко"
 date: "November 3, 2019"
 output:
+  beamer_presentation: default
   ioslides_presentation:
     smaller: no
     widescreen: yes
-  beamer_presentation: default
   slidy_presentation: default
 ---
 
@@ -118,7 +118,7 @@ train$Child[train$Age < 18] <- 1
 ```{r}
 train %>%
   group_by(Child,Sex) %>%
-  summarise(survived_number = sum(as.numeric(Survived) - 1),
+  summarise(survived_number = sum(as.numeric(Survived)),
             total = n())
 
 ```
@@ -128,7 +128,7 @@ train %>%
 ```{r}
 train %>%
   group_by(Child,Sex) %>%
-  summarise(survived_number = sum(as.numeric(Survived) - 1),
+  summarise(survived_number = sum(as.numeric(Survived)),
             total = n(),
             percent_survived = survived_number / total)
 
@@ -153,7 +153,8 @@ train %>%
 test$Survived <- 0
 test$Child <- 0
 test$Child[test$Age < 18] <- 1
-test$Survived[test$Child == 1 & test$Pclass %in% c(1,2)] <- 1
+test$Survived[test$Child == 1 & test$Pclass %in% c(1,2,3)] <- 1
+test$Survived[test$Child == 1 & test$Sex == 'male' & test$Pclass == 3] <- 0
 test$Survived[test$Sex == 'female'] <- 1
 submit$Survived <- test$Survived
 write.csv(submit, file = "impovedSurvived.csv", row.names = FALSE)
@@ -176,7 +177,7 @@ train$Fare2[train$Fare < 10] <- '<10'
 
 train %>%
   group_by(Child,Sex,Pclass,Fare2) %>%
-  summarise(survived_number = sum(as.numeric(Survived) - 1),
+  summarise(survived_number = sum(as.numeric(Survived) ),
             total = n(),
             percent_survived = survived_number / total) %>%
   arrange(desc(percent_survived))
@@ -196,7 +197,7 @@ train$Title[train$Title %in% c('Dona', 'Lady', 'the Countess')] <- 'Lady'
 ```{r}
 train %>%
   group_by(FamilySize, Title,Pclass,Fare2) %>%
-  summarise(percent_survived = sum(as.numeric(Survived) - 1) / n()) %>%
+  summarise(percent_survived = sum(as.numeric(Survived) ) / n()) %>%
   arrange(desc(percent_survived))
 ```
 
