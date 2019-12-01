@@ -18,11 +18,8 @@ options(digits=3)
 # set thousands deliminator
 options(big.mark = ",")
 
-# working directory
-setwd("C:/Users/Oleksa/Documents/Reserve_price")
-
 # download data
-data.eggs <- read.csv2("data_eggs.csv")
+data.eggs <- read.csv("eggs.csv",encoding = "UTF-8", header = T, stringsAsFactors = F)
 
 # download functions
 eval(parse("function_draw_scatter.R", encoding="UTF-8"))

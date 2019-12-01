@@ -94,6 +94,9 @@ output.forest <- randomForest(nativeSpeaker ~ age + shoeSize + score,
 # View the forest results.
 print(output.forest) 
 
+output.forest1 <- randomForest(nativeSpeaker ~ age + shoeSize + score, 
+           data = readingSkills,ntree = 1000)
+print(output.forest1) 
 ```
 
 

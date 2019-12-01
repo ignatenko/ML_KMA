@@ -1,0 +1,340 @@
+---
+title: "Lecture 10. Clustering"
+author: "Олексій Ігнатенко"
+date: "November 3, 2019"
+output:
+  ioslides_presentation:
+    smaller: no
+    widescreen: yes
+  beamer_presentation: default
+  slidy_presentation: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+```
+
+
+```{r}
+library(tidyverse)  # data manipulation
+library(cluster)    # clustering algorithms
+library(factoextra) # clustering algorithms & visualization
+```
+
+## Дані про арешти в Америці
+
+```{r}
+df <- USArrests
+str(df)
+```
+
+## 
+
+```{r}
+colSums(is.na(df)|df=='')
+```
+## 
+
+```{r}
+head(df)
+df <- scale(df)
+```
+
+## Евклідова відстань
+
+```{r}
+distance <- get_dist(df, method = "euclidean")
+fviz_dist(distance, gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
+```
+
+## Манхеттеновська відстань
+
+```{r}
+distance <- get_dist(df, method = "manhattan")
+fviz_dist(distance, gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
+```
+
+## Кластерізація
+
+Стандартний алгоритм Хартігана-Вонга (1979) визначає внутрішньокластерну варіацію як суму квадратів евклідових відстаней до центру кластеру:
+
+$$W(C_k) = \sum_{x_i \in C_k}(x_i - \mu_k)^2 \tag{6}$$
+Кожне спостереження $x_i$ призначається кластеру так, щоб сума квадратів відстаней по всіх кластерах була мінімальна. 
+
+## 
+
+Тобто, щоб була мінімальною сума
+
+$$tot.withiness = \sum^k_{k=1}W(C_k) = \sum^k_{k=1}\sum_{x_i \in C_k}(x_i - \mu_k)^2 \tag{7}$$
+
+## K-means algorithm
+
+1. Визначити кількість кластерів $k$ (робота аналітика і мінус алгоритму)
+2. Вибрати випадково вибрати $k$ об'єктів з множини даних та визначити їх як центри кластерів.
+3. Призначити кожну точку до найближчого центру на основі відстані. 
+4. Для кожного кластеру оновити значення центру, як середнього всіх точок, що йому належать. 
+5. Повторювати 3, 4 поки не досягнемо заданого числа ітерацій або центри не змінюються. 
+
+Результат залежить від кількості ітерацій і кількості кластерів
+
+##
+
+```{r}
+k2 <- kmeans(df, centers = 2, nstart = 25)
+str(k2)
+```
+
+##
+
+```{r}
+k2
+```
+
+##
+
+```{r}
+fviz_cluster(k2, data = df)
+```
+
+
+##
+
+```{r,echo=FALSE}
+km.res <- kmeans(df, centers = 4, nstart = 25)
+fviz_cluster(km.res, data = df,
+palette = c("#2E9FDF", "#00AFBB", "#E7B800", "#FC4E07"), ellipse.type = "euclid", # Concentration ellipse star.plot = TRUE, # Add segments from centroids to items repel = TRUE, # Avoid label overplotting (slow)
+ggtheme = theme_minimal()
+)
+```
+
+##
+
+```{r}
+df %>%
+  as_tibble() %>%
+  mutate(cluster = k2$cluster,
+         state = row.names(USArrests)) %>%
+  ggplot(aes(UrbanPop, Murder, color = factor(cluster), label = state)) +
+  geom_text()
+```
+
+
+
+##
+
+```{r, echo=FALSE}
+k3 <- kmeans(df, centers = 3, nstart = 25)
+k4 <- kmeans(df, centers = 4, nstart = 25)
+k5 <- kmeans(df, centers = 5, nstart = 25)
+
+# plots to compare
+p1 <- fviz_cluster(k2, geom = "point", data = df) + ggtitle("k = 2")
+p2 <- fviz_cluster(k3, geom = "point",  data = df) + ggtitle("k = 3")
+p3 <- fviz_cluster(k4, geom = "point",  data = df) + ggtitle("k = 4")
+p4 <- fviz_cluster(k5, geom = "point",  data = df) + ggtitle("k = 5")
+
+library(gridExtra)
+grid.arrange(p1, p2, p3, p4, nrow = 2)
+```
+
+
+## Оптимальна кількість кластерів
+
+1. Метод Елбоу
+2. Силует
+3. Статистика розривів
+
+## Метод Елбоу
+
+```{r}
+set.seed(123)
+
+# function to compute total within-cluster sum of square 
+wss <- function(k) {
+  kmeans(df, k, nstart = 10 )$tot.withinss
+}
+
+# Compute and plot wss for k = 1 to k = 15
+k.values <- 1:15
+
+# extract wss for 2-15 clusters
+wss_values <- map_dbl(k.values, wss)
+
+plot(k.values, wss_values,
+       type="b", pch = 19, frame = FALSE, 
+       xlab="Number of clusters K",
+       ylab="Total within-clusters sum of squares")
+```
+
+
+## Це можна прискорити використовуючи функцію
+
+
+```{r}
+set.seed(123)
+
+fviz_nbclust(df, kmeans, method = "wss")
+```
+
+## По силуету
+
+Підхід оцінки по сілуету оцінює якість кластерізації. Тобто наскільки добре кожне спостереження вкладається в свій кластер. Великий середній силует означає якісну кластерізацію. 
+
+```{r, eval=FALSE}
+# function to compute average silhouette for k clusters
+avg_sil <- function(k) {
+  km.res <- kmeans(df, centers = k, nstart = 25)
+  ss <- silhouette(km.res$cluster, dist(df))
+  mean(ss[, 3])
+}
+
+# Compute and plot wss for k = 2 to k = 15
+k.values <- 2:15
+
+# extract avg silhouette for 2-15 clusters
+avg_sil_values <- map_dbl(k.values, avg_sil)
+
+plot(k.values, avg_sil_values,
+       type = "b", pch = 19, frame = FALSE, 
+       xlab = "Number of clusters K",
+       ylab = "Average Silhouettes")
+```
+
+##
+
+```{r, echo=FALSE}
+# function to compute average silhouette for k clusters
+avg_sil <- function(k) {
+  km.res <- kmeans(df, centers = k, nstart = 25)
+  ss <- silhouette(km.res$cluster, dist(df))
+  mean(ss[, 3])
+}
+
+# Compute and plot wss for k = 2 to k = 15
+k.values <- 2:15
+
+# extract avg silhouette for 2-15 clusters
+avg_sil_values <- map_dbl(k.values, avg_sil)
+
+plot(k.values, avg_sil_values,
+       type = "b", pch = 19, frame = FALSE, 
+       xlab = "Number of clusters K",
+       ylab = "Average Silhouettes")
+```
+
+
+##
+
+```{r}
+fviz_nbclust(df, kmeans, method = "silhouette")
+```
+
+
+## Gap 
+
+Використовується Монте-Карло симуляція
+
+```{r}
+set.seed(123)
+gap_stat <- clusGap(df, FUN = kmeans, nstart = 25,
+                    K.max = 10, B = 50)
+# Print the result
+print(gap_stat, method = "firstmax")
+```
+
+
+
+##
+
+```{r}
+fviz_gap_stat(gap_stat)
+```
+
+
+##  Недоліки
+
+1. It assumes prior knowledge of the data and requires the analyst to choose the appropriate number of cluster (k) in advance.
+
+2. The final results obtained is sensitive to the initial random selection of cluster centers. Why is this a problem? Because, for every different run of the algorithm on the same data set, you may choose different runs of the algorithm.
+
+3. It’s sensitive to outliers.
+
+4. If you rearrange your data, it’s very possible that you’ll get a different solution every time you change the ordering of your data.
+
+
+## Переваги
+
+
+1. Solution to issue 1: Compute k-means for a range of k values, for example by varying k between 2 and 10. Then, choose the best k by comparing the clustering results obtained for the different k values.
+
+2. Solution to issue 2: Compute K-means algorithm several times with different initial cluster centers. The run with the lowest total within-cluster sum of square is selected as the final clustering solution.
+
+3. To avoid distortions caused by excessive outliers, it’s possible to use PAM algorithm, which is less sensitive to outliers.
+
+## PAM
+
+```{r}
+pam.res <- pam(df, 2) 
+print(pam.res)
+```
+
+## 
+
+```{r}
+dd <- cbind(USArrests, cluster = pam.res$cluster) 
+head(dd, n = 3)
+```
+
+##
+
+```{r}
+fviz_cluster(pam.res,
+palette = c("#00AFBB", "#FC4E07"), # color palette
+ellipse.type = "t", # Concentration ellipse repel = TRUE, # Avoid label overplotting (slow) ggtheme = theme_classic()
+)
+```
+
+## PAM
+
+1. Select k objects to become the medoids, or in case these objects were provided use them as the medoids;
+2. Calculate the dissimilarity matrix if it was not provided;
+3. Assign every object to its closest medoid;
+4. For each cluster search if any of the object of the cluster decreases the average dissimilarity coeffcient; if it does, select the entity that decreases this coeffcient the most as the medoid for this cluster;
+5. If at least one medoid has changed go to (3), else end the algorithm.
+
+## Ієрархічна кластерізація
+
+Hierarchical clustering [or hierarchical cluster analysis (HCA)] is an alter- native approach to partitioning clustering (Part II) for grouping objects based on their similarity. In contrast to partitioning clustering, hierarchical clustering does not require to pre-specify the number of clusters to be produced.
+Hierarchical clustering can be subdivided into two types:
+• Agglomerative clustering in which, each observation is initially considered as a cluster of its own (leaf). Then, the most similar clusters are successively merged until there is just one single big cluster (root).
+• Divise clustering, an inverse of agglomerative clustering, begins with the root, in witch all objects are included in one cluster. Then the most heterogeneous clusters are successively divided until all observation are in their own cluster.
+The result of hierarchical clustering is a tree-based representation of the objects, which is also known as dendrogram
+
+## Приклад
+
+```{r}
+res.dist <- dist(df, method = "euclidean")
+res.hc <- hclust(d = res.dist, method = "ward.D2")
+```
+
+##
+
+```{r}
+fviz_dend(res.hc, cex = 0.5)
+```
+
+##
+
+```{r}
+fviz_dend(res.hc, k = 4, # Cut in four groups
+cex = 0.5, # label size
+k_colors = c("#2E9FDF", "#00AFBB", "#E7B800", "#FC4E07"), color_labels_by_k = TRUE, # color labels by groups
+rect = TRUE # Add rectangle around groups
+)
+```
+
+## Завдання
+
+1. Провести класифікацію для iris за різними методами
+2. Візуалізувати
